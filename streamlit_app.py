@@ -3,149 +3,186 @@ import pandas as pd
 import math
 from pathlib import Path
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+#streamlit run /home/Scott_Baba_/Documents/stremlit/resume.py
+import streamlit as st, time, seaborn as sea, pandas as pd
+import matplotlib.pyplot as plt, torch.nn.functional as F, torch.optim as op
+import torch, torch.nn as nn, PIL.Image as Image, torchvision.transforms as trans
+from skimage import io
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+transform = trans.Compose([
+    trans.ToTensor()
+    ,trans.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+])
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+st.title("Model Tuning Exerceise")
+st.markdown("*made in python*")
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
-
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
-
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
-
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
-
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
-
-    return gdp_df
-
-gdp_df = get_gdp_data()
-
-# -----------------------------------------------------------------------------
-# Draw the actual page
-
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
-
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
-
-# Add some spacing
-''
-''
-
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
-
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
-
-countries = gdp_df['Country Code'].unique()
-
-if not len(countries):
-    st.warning("Select at least one country")
-
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
-
-''
-''
-''
-
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
-
-st.header('GDP over time', divider='gray')
-
-''
-
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
-
-''
-''
+st.subheader("Experiment Setup")
+st.write("""
+To evaluate the performance of different activation functions:
+CELU, ELU, Mish, ReLU, SELU, and Tanh
+a series of experiments were conducted on a classifier that
+detects for humans labeling them human or not human. The 
+models were trained using the Stochastic gradient descent
+(SGD) as the optimizer with a learning rate of 0.001 and 
+a momentum of 0.9 and evaluated using accuracy. The training 
+set is 200 images not containing people 200 with people and the
+test se is 80 images, including 40 with people.
 
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
 
-st.header(f'GDP in {to_year}', divider='gray')
+""")
 
-''
 
-cols = st.columns(4)
 
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
+code = """
+class NeuralNet(nn.Module):
 
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
+    def __init__(self):
+        super().__init__()
 
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
-        else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+        self.convl = nn.Conv2d(3, 12, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(12, 24, 4)
+        self.fc1 = nn.Linear(20184, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+    
+    def forward(self, x):
+        x = self.pool(F.relu(self.convl(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = torch.flatten(x, 1)
+        x = F.selu(self.fc1(x))
+        x = F.selu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+"""
+
+#st.code(code,)
+#mis =85 80 88.75
+#tnh = 82.25 83.75 86.25
+#celu = 81.25 78.75 91.25
+#elu = 81.25 87.5 85
+#selu = 90 86.25 88.75
+#mish = 80 87.5 85
+
+y=[((96.25+98.75+100.0)/3),(97.5),((95+97.5+98.75)/3),((96.25+98.75+96.25)/3),((100+98.75+100)/3),((92.5+96.25+96.25)/3)]
+sea.barplot(x=["celu","elu","mish","relu","selu","tanh"], y=y, hue=y, palette="crest", legend=False)
+plt.ylim(90, 100)
+plt.title('Cross Entropy Loss')
+plt.ylabel('Accuracy(%)')
+plt.xlabel('Activation Function')
+st.pyplot(plt)
+plt.clf()
+
+y=[((81.25+78.75+91.25)/3),((81.25+87.5+85)/3),((80+87.5+85)/3),((81.25+81.25+86.25)/3),((90+86.25+88.75)/3),((82.25+83.75+86.25)/3)]
+sea.barplot(x=["celu","elu","mish","relu","selu","tanh"], y=y, hue=y, palette="crest", legend=False)
+plt.ylim(70, 100)
+plt.title('Multi Margin Loss')
+plt.ylabel('Accuracy(%)')
+plt.xlabel('Activation Function')
+st.pyplot(plt)
+plt.clf()
+
+st.subheader("Results and Analysis")
+st.write("""
+The results consistently demonstrated that SELU outperformed 
+the other activation functions in terms of accuracy. This 
+superiority was observed across both cross-entropy loss 
+and MultiMarginLoss.
+
+
+
+""")
+
+st.subheader("Conclusion")
+st.write(r"""
+While SELU demonstrated superior performance in this experiment, 
+it's important to note that our primary goal was not to create 
+a world-class image classifier but to compare the effectiveness 
+of different activation functions. The results suggest that 
+SELU's self-normalizing property, consistent performance, and 
+robustness to different scenarios make it a promising choice 
+for a wide range of deep learning tasks but thurther analysis 
+with a much larger set of data will be needed to draw any 
+serious conclusions.
+
+!99% accuracy is not a true reflection of the model the images
+in the training and test data are from the same source mostly
+portrait pictures of people in clear view and its an a small 
+data set 580(images)!
+""")
+
+class NeuralNet(nn.Module):
+
+    def __init__(self):
+        super().__init__()
+
+        self.convl = nn.Conv2d(3, 12, 5)
+        self.pool = nn.MaxPool2d(2, 2)
+        self.conv2 = nn.Conv2d(12, 24, 4)
+        self.fc1 = nn.Linear(29*29*24, 120)
+        self.fc2 = nn.Linear(120, 84)
+        self.fc3 = nn.Linear(84, 10)
+
+    
+    def forward(self, x):
+        x = self.pool(F.relu(self.convl(x)))
+        x = self.pool(F.relu(self.conv2(x)))
+        x = torch.flatten(x, 1)
+        x = F.selu(self.fc1(x))
+        x = F.selu(self.fc2(x))
+        x = self.fc3(x)
+        return x
+
+model = NeuralNet()
+model.load_state_dict(torch.load("deploy.pth"))
+model.eval()  # Set the model to evaluation mode
+
+def test_img(x):
+    #Display image
+    img = io.imread(x)
+    io.imshow(img)
+
+    # Load the image to pass it through neural network
+    image = Image.open(x)
+
+    # Resixing the image to 128x128
+    resize_transform = trans.Resize((128, 128))
+    image = resize_transform(image)
+
+
+    # Preprocess the image
+    image_tensor = transform(image)
+
+    # Add a batch dimension
+    image_tensor = image_tensor.unsqueeze(0)
+
+    # Set the network to evaluation mode
+    model.eval()
+
+    # Pass the image through the network
+    with torch.no_grad():
+        output = model(image_tensor)
+
+    # Get the predicted class index
+    _, predicted = torch.max(output, 1)
+
+    # Retrieve the class label (if applicable)
+    class_mapping = {0: "Human", 1: "Not a Human"}
+    class_label = class_mapping[predicted.item()]
+
+    print("Predicted class:", class_label)
+    if class_label=="Human":
+        st.text("Predicted class: Human")
+    else:
+        st.text("Predicted class: Not a Human")
+
+image=st.file_uploader("would you like to test the model", type=["png", "jpeg", "jpg", "gif", "tiff", "bmp", "webp"])
+if image is not None:
+    st.image(image)
+    test_img(image)
+with st.expander("Best Performing Model Code"):
+    st.code(code,)
+
