@@ -2,6 +2,6 @@ streamlit
 pandas
 seaborn
 matplotlib
-skimage
+scikit-image
 torchvision
 time
