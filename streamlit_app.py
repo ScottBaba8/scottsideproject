@@ -1,6 +1,4 @@
-import streamlit as st
-import pandas as pd
-import math
+pip install seaborn, streamlit, pandas, seaborn ,matplotlib ,skimage ,torch ,torchvision ,time
 from pathlib import Path
 
 #streamlit run /home/Scott_Baba_/Documents/stremlit/resume.py
