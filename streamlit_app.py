@@ -1,3 +1,4 @@
+pip install --upgrade pip
 pip install seaborn, streamlit, pandas, seaborn ,matplotlib ,skimage ,torch ,torchvision ,time
 from pathlib import Path
 
